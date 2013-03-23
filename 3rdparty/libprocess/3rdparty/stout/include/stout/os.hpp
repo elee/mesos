@@ -68,13 +68,6 @@
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
 
-#ifdef __APPLE__
-// Assigning the result pointer to ret silences an unused var warning.
-#define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
-  ({ (void)ret; *(result) = gethostbyname2(name, af); 0; })
-#endif // __APPLE__
-
-// Need to declare 'environ' pointer for non OS X platforms.
 #ifndef __APPLE__
 extern char** environ;
 #endif
@@ -658,35 +651,13 @@ inline std::string user()
 
 inline Try<std::string> hostname()
 {
-  char host[512];
+  char host[HOST_NAME_MAX];
 
   if (gethostname(host, sizeof(host)) < 0) {
     return ErrnoError();
   }
 
-  // Allocate temporary buffer for gethostbyname2_r.
-  size_t length = 1024;
-  char* temp = new char[length];
-
-  struct hostent he, *hep = NULL;
-  int result = 0;
-  int herrno = 0;
-
-  while ((result = gethostbyname2_r(host, AF_INET, &he, temp,
-                                    length, &hep, &herrno)) == ERANGE) {
-    // Enlarge the buffer.
-    delete[] temp;
-    length *= 2;
-    temp = new char[length];
-  }
-
-  if (result != 0 || hep == NULL) {
-    delete[] temp;
-    return Error(hstrerror(herrno));
-  }
-
-  std::string hostname = hep->h_name;
-  delete[] temp;
+  std::string hostname(host, strnlen(host, HOST_NAME_MAX));
   return Try<std::string>::some(hostname);
 }
 
