@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <cstdlib> // random()
 #include <fstream>
 #include <iomanip>
 #include <list>
@@ -1684,6 +1685,13 @@ void Master::offer(const FrameworkID& frameworkId,
 
   if (message.offers().size() == 0) {
     return;
+  }
+
+  // Shuffle the offers to help ensure fair resource distribution,
+  // using Fisher-Yates shuffle.
+  for (int i = message.offers().size() - 1; i > 1; --i) {
+      int j = ((double)random() / RAND_MAX) * i;
+      message.mutable_offers(j)->Swap(message.mutable_offers(i));
   }
 
   LOG(INFO) << "Sending " << message.offers().size()
