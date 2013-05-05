@@ -208,7 +208,7 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
 {
   // Set verbosity level for underlying ZooKeeper library logging.
   // TODO(benh): Put this in the C++ API.
-  zoo_set_debug_level(quiet ? ZOO_LOG_LEVEL_ERROR : ZOO_LOG_LEVEL_DEBUG);
+  zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
 }
 
 
