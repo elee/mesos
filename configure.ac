@@ -124,6 +124,11 @@ AC_ARG_ENABLE([optimize],
                              [don't try to compile with optimizations]),
               [], [enable_optimize=yes])
 
+AC_ARG_ENABLE([debug],
+              AS_HELP_STRING([--enable-debug],
+                             [Enable debug flags]),
+              [], [enable_debug=no])
+
 AC_ARG_WITH([curl],
             AS_HELP_STRING([--without-curl],
                            [builds Mesos assuming libcurl
@@ -459,7 +464,16 @@ AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 if test "x$enable_optimize" = "xyes"; then
   # For now, we only turn on optimizations for gcc.
   if test "x$GCC" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -g2 -O2"
+    CFLAGS="$CFLAGS -O2"
+    CXXFLAGS="$CXXFLAGS -O2"
+  fi
+fi
+
+# Check if we should try and enable debug flags.
+if test "x$enable_debug" = "xyes"; then
+  if test "x$GCC" = "xyes"; then
+    CFLAGS="$CFLAGS -ggdb"
+    CXXFLAGS="$CXXFLAGS -ggdb"
   fi
 fi
 
