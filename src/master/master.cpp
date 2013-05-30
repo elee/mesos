@@ -132,14 +132,16 @@ public:
   SlaveObserver(const UPID& _slave,
                 const SlaveInfo& _slaveInfo,
                 const SlaveID& _slaveId,
-                const PID<Master>& _master)
+                const PID<Master>& _master,
+                const Flags& flags)
     : ProcessBase(ID::generate("slave-observer")),
       slave(_slave),
       slaveInfo(_slaveInfo),
       slaveId(_slaveId),
       master(_master),
       timeouts(0),
-      pinged(false)
+      pinged(false),
+      flags(flags)
   {
     install("PONG", &SlaveObserver::pong);
   }
@@ -149,7 +151,7 @@ protected:
   {
     send(slave, "PING");
     pinged = true;
-    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
+    delay(flags.slave_ping_timeout, self(), &SlaveObserver::timeout);
   }
 
   void pong(const UPID& from, const string& body)
@@ -169,7 +171,7 @@ protected:
 
     send(slave, "PING");
     pinged = true;
-    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
+    delay(flags.slave_ping_timeout, self(), &SlaveObserver::timeout);
   }
 
   void deactivate()
@@ -184,6 +186,7 @@ private:
   const PID<Master> master;
   uint32_t timeouts;
   bool pinged;
+  const Flags& flags;
 };
 
 
@@ -396,6 +399,13 @@ void Master::initialize()
 
       roleInfos[pair[0]].set_weight(weight);
     }
+  }
+
+  if (flags.slave_ping_timeout < MIN_SLAVE_PING_TIMEOUT) {
+    EXIT(1) << "Slave ping timeout of "
+      << flags.slave_ping_timeout
+      << " is less than minimum slave timeout of "
+      << MIN_SLAVE_PING_TIMEOUT;
   }
 
   foreachpair (const std::string& role,
@@ -2510,7 +2520,8 @@ void Master::addSlave(Slave* slave, bool reregister)
 
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(slave->pid, slave->info,
-                                      slave->id, self());
+                                      slave->id, self(),
+                                      flags);
   spawn(slave->observer);
 
   if (!reregister) {

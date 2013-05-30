@@ -2250,11 +2250,11 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
   Clock::settle();
 
   // The master will notify the framework that the slave was lost.

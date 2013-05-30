@@ -25,6 +25,7 @@
 #include <stout/flags.hpp>
 
 #include "logging/flags.hpp"
+#include "master/constants.hpp"
 
 namespace mesos {
 namespace internal {
@@ -70,7 +71,7 @@ public:
         "between users. May be one of:\n"
         "  dominant_resource_fairness (drf)",
         "drf");
- 
+
     add(&Flags::framework_sorter,
         "framework_sorter",
         "Policy to use for allocating resources\n"
@@ -113,6 +114,12 @@ public:
         "Path to a file with a list of credentials.\n"
         "Each line contains a 'principal' and 'secret' separated by whitespace.\n"
         "Path could be of the form 'file:///path/to/file' or '/path/to/file'");
+    add(&Flags::slave_ping_timeout,
+        "slave_ping_timeout",
+        "Amount of time to wait for a slave to respond\n"
+        "to a ping before considering it a timeout.\n"
+        "Must be at least 15secs (e.g., 15secs, 60secs, etc).",
+        MIN_SLAVE_PING_TIMEOUT);
   }
 
   bool root_submissions;
@@ -128,6 +135,7 @@ public:
   Option<std::string> weights;
   bool authenticate;
   Option<std::string> credentials;
+  Duration slave_ping_timeout;
 };
 
 } // namespace mesos {

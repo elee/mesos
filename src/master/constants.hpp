@@ -52,7 +52,7 @@ extern const uint32_t MAX_CPUS;
 extern const uint32_t MAX_MEM;
 
 // Amount of time within which a slave PING should be received.
-extern const Duration SLAVE_PING_TIMEOUT;
+extern const Duration MIN_SLAVE_PING_TIMEOUT;
 
 // Maximum number of ping timeouts until slave is considered failed.
 extern const uint32_t MAX_SLAVE_PING_TIMEOUTS;
