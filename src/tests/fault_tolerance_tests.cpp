@@ -179,10 +179,10 @@ TEST_F(FaultToleranceTest, PartitionedSlave)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
 
   AWAIT_READY(slaveLost);
 
@@ -300,11 +300,11 @@ TEST_F(FaultToleranceTest, PartitionedSlaveReregistration)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
@@ -418,11 +418,11 @@ TEST_F(FaultToleranceTest, PartitionedSlaveStatusUpdates)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
   Clock::settle();
 
   // Wait for the master to attempt to shut down the slave.
@@ -559,11 +559,11 @@ TEST_F(FaultToleranceTest, PartitionedSlaveExitedExecutor)
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(master::MIN_SLAVE_PING_TIMEOUT);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
