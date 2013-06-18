@@ -75,10 +75,12 @@ public:
    * @param quite true if should limit log output
    * @return instance of MasterDetector
    */
-  static Try<MasterDetector*> create(const std::string& master,
-                                     const process::UPID& pid,
-                                     bool contend = false,
-                                     bool quiet = true);
+  static Try<MasterDetector*> create(
+      const std::string& master,
+      const process::UPID& pid,
+      const std::string& hostname,
+      bool contend = false,
+      bool quiet = true);
 
   /**
    * Cleans up and deallocates the detector.
@@ -97,10 +99,12 @@ public:
    * @param master libprocess pid to send messages/updates and be the
    * master
    */
-  BasicMasterDetector(const process::UPID& master);
+  BasicMasterDetector(
+      const process::UPID& master,
+      const std::string& hostname);
 
   /**
-   * Create a new master detector where the 'master' pid is 
+   * Create a new master detector where the 'master' pid is
    * the master (no contending).
    *
    * @param master libprocess pid to send messages/updates and be the
@@ -109,13 +113,17 @@ public:
    * the master
    * @param elect if true then contend and elect the specified master
    */
-  BasicMasterDetector(const process::UPID& master,
-		      const process::UPID& pid,
-		      bool elect = false);
+  BasicMasterDetector(
+      const process::UPID& master,
+      const std::string& hostname,
+      const process::UPID& pid,
+      bool elect = false);
 
-  BasicMasterDetector(const process::UPID& master,
-		      const std::vector<process::UPID>& pids,
-		      bool elect = false);
+  BasicMasterDetector(
+      const process::UPID& master,
+      const std::string& hostname,
+      const std::vector<process::UPID>& pids,
+      bool elect = false);
 
   virtual ~BasicMasterDetector();
 
@@ -138,10 +146,12 @@ public:
    * needed for slaves and frameworks)
    * @param quiet verbosity logging level for underlying ZooKeeper library
    */
-  ZooKeeperMasterDetector(const zookeeper::URL& url,
-                          const process::UPID& pid,
-                          bool contend,
-                          bool quiet);
+  ZooKeeperMasterDetector(
+      const zookeeper::URL& url,
+      const process::UPID& pid,
+      const std::string& hostname,
+      bool contend,
+      bool quiet);
 
   virtual ~ZooKeeperMasterDetector();
 
@@ -165,10 +175,11 @@ class ZooKeeperMasterDetectorProcess
 {
 public:
   ZooKeeperMasterDetectorProcess(
-    const zookeeper::URL& url,
-    const process::UPID& pid,
-    bool contend,
-    bool quiet);
+      const zookeeper::URL& url,
+      const process::UPID& pid,
+      const std::string& hostname,
+      bool contend,
+      bool quiet);
 
   virtual ~ZooKeeperMasterDetectorProcess();
 
@@ -198,6 +209,7 @@ private:
   const ACL_vector acl;
 
   const process::UPID pid;
+  const std::string hostname;
   bool contend;
 
   Watcher* watcher;
@@ -207,6 +219,7 @@ private:
   Option<process::Timer> timer;
 
   std::string currentMasterSeq;
+  std::string currentMasterHostname;
   process::UPID currentMasterPID;
 };
 

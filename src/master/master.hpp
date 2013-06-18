@@ -97,7 +97,8 @@ public:
   void submitScheduler(
       const std::string& name);
   void newMasterDetected(
-      const UPID& pid);
+      const UPID& pid,
+      const std::string& hostname);
   void noMasterDetected();
   void masterDetectionFailure();
   void registerFramework(
@@ -302,6 +303,7 @@ private:
   const Flags flags;
 
   UPID leader; // Current leading master.
+  std::string leaderHostname;
 
   bool elected;
 

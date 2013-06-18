@@ -149,8 +149,20 @@ int main(int argc, char** argv)
   Master* master = new Master(allocator, registrar, &files, flags);
   process::spawn(master);
 
+  // Determine hostname.
+  Try<string> result = os::hostname();
+
+  string hostname;
+
+  if (!result.isError()) {
+    hostname = result.get();
+  } else {
+    LOG(WARNING) << "Failed to get hostname: " << result.error();
+  }
+
   Try<MasterDetector*> detector =
-    MasterDetector::create(zk, master->self(), true, flags.quiet);
+    MasterDetector::create(
+        zk, master->self(), hostname, true, flags.quiet);
 
   CHECK_SOME(detector) << "Failed to create a master detector";
 

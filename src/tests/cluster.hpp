@@ -258,9 +258,10 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   process::PID<master::Master> pid = process::spawn(master.master);
 
   if (url.isSome()) {
-    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
+    master.detector =
+      new ZooKeeperMasterDetector(url.get(), pid, "localhost", true, true);
   } else {
-    master.detector = new BasicMasterDetector(pid);
+    master.detector = new BasicMasterDetector(pid, "localhost");
   }
 
   masters[pid] = master;
@@ -308,9 +309,9 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   process::PID<master::Master> pid = process::spawn(master.master);
 
   if (url.isSome()) {
-    master.detector = new ZooKeeperMasterDetector(url.get(), pid, true, true);
+    master.detector = new ZooKeeperMasterDetector(url.get(), pid, "localhost", true, true);
   } else {
-    master.detector = new BasicMasterDetector(pid);
+    master.detector = new BasicMasterDetector(pid, "localhost");
   }
 
   masters[pid] = master;
@@ -352,11 +353,12 @@ inline Owned<MasterDetector> Cluster::Masters::detector(
     const slave::Flags& flags)
 {
   if (url.isSome()) {
-    return new ZooKeeperMasterDetector(url.get(), pid, false, flags.quiet);
+    return
+      new ZooKeeperMasterDetector(url.get(), pid, "localhost", false, flags.quiet);
   }
 
   CHECK(masters.size() == 1);
-  return new BasicMasterDetector(masters.begin()->first, pid);
+  return new BasicMasterDetector(masters.begin()->first, "localhost", pid);
 }
 
 

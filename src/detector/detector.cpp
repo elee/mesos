@@ -74,12 +74,13 @@ MasterDetector::~MasterDetector() {}
 Try<MasterDetector*> MasterDetector::create(
     const string& master,
     const UPID& pid,
+    const std::string& hostname,
     bool contend,
     bool quiet)
 {
   if (master == "") {
     if (contend) {
-      return new BasicMasterDetector(pid);
+      return new BasicMasterDetector(pid, hostname);
     } else {
       return Error("Cannot detect master");
     }
@@ -92,7 +93,8 @@ Try<MasterDetector*> MasterDetector::create(
       return Error(
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
-    return new ZooKeeperMasterDetector(url.get(), pid, contend, quiet);
+    return
+      new ZooKeeperMasterDetector(url.get(), pid, hostname, contend, quiet);
   } else if (master.find("file://") == 0) {
     const std::string& path = master.substr(7);
     std::ifstream file(path.c_str());
@@ -110,7 +112,7 @@ Try<MasterDetector*> MasterDetector::create(
 
     file.close();
 
-    return create(line, pid, contend, quiet);
+    return create(line, pid, hostname, contend, quiet);
   }
 
   // Okay, try and parse what we got as a PID.
@@ -122,7 +124,7 @@ Try<MasterDetector*> MasterDetector::create(
     return Error("Cannot parse '" + std::string(masterPid) + "'");
   }
 
-  return new BasicMasterDetector(masterPid, pid);
+  return new BasicMasterDetector(masterPid, hostname, pid);
 }
 
 
@@ -133,18 +135,22 @@ void MasterDetector::destroy(MasterDetector *detector)
 }
 
 
-BasicMasterDetector::BasicMasterDetector(const UPID& _master)
+BasicMasterDetector::BasicMasterDetector(
+    const UPID& _master,
+    const std::string& _hostname)
   : master(_master)
 {
   // Elect the master.
   NewMasterDetectedMessage message;
   message.set_pid(master);
+  message.set_hostname(_hostname);
   process::post(master, message);
 }
 
 
 BasicMasterDetector::BasicMasterDetector(
     const UPID& _master,
+    const std::string& hostname,
     const UPID& pid,
     bool elect)
   : master(_master)
@@ -153,18 +159,21 @@ BasicMasterDetector::BasicMasterDetector(
     // Elect the master.
     NewMasterDetectedMessage message;
     message.set_pid(master);
+    message.set_hostname(hostname);
     process::post(master, message);
   }
 
   // Tell the pid about the master.
   NewMasterDetectedMessage message;
   message.set_pid(master);
+  message.set_hostname(hostname);
   process::post(pid, message);
 }
 
 
 BasicMasterDetector::BasicMasterDetector(
     const UPID& _master,
+    const std::string& hostname,
     const vector<UPID>& pids,
     bool elect)
   : master(_master)
@@ -173,6 +182,7 @@ BasicMasterDetector::BasicMasterDetector(
     // Elect the master.
     NewMasterDetectedMessage message;
     message.set_pid(master);
+    message.set_hostname(hostname);
     process::post(master, message);
   }
 
@@ -180,6 +190,7 @@ BasicMasterDetector::BasicMasterDetector(
   foreach (const UPID& pid, pids) {
     NewMasterDetectedMessage message;
     message.set_pid(master);
+    message.set_hostname(hostname);
     process::post(pid, message);
   }
 }
@@ -191,6 +202,7 @@ BasicMasterDetector::~BasicMasterDetector() {}
 ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
     const zookeeper::URL& _url,
     const UPID& _pid,
+    const std::string &_hostname,
     bool _contend,
     bool quiet)
   : url(_url),
@@ -198,12 +210,14 @@ ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
         ? zookeeper::EVERYONE_READ_CREATOR_ALL
         : ZOO_OPEN_ACL_UNSAFE),
     pid(_pid),
+    hostname(_hostname),
     contend(_contend),
     watcher(NULL),
     zk(NULL),
     expire(false),
     timer(),
     currentMasterSeq(),
+    currentMasterHostname(),
     currentMasterPID()
 {
   // Set verbosity level for underlying ZooKeeper library logging.
@@ -282,10 +296,19 @@ void ZooKeeperMasterDetectorProcess::connected(bool reconnect)
 
       if (code != ZOK) {
         LOG(FATAL) << "Unable to create ephemeral child of '" << url.path
-                   << "' in ZooKeeper: %s" << zk->message(code);
+                   << "' in ZooKeeper: " << zk->message(code);
       }
 
-      LOG(INFO) << "Created ephemeral/sequence znode at '" << result << "'";
+      LOG(INFO) << "Created ephemeral/sequence znode at '" << result
+        << "' on " << hostname;
+
+      // It's okay if this fails.
+      code = zk->create(result + "-hostname", hostname, acl,
+          ZOO_EPHEMERAL, &result);
+      if (code != ZOK) {
+        LOG(ERROR) << "Unable to create ephemeral child of '" << url.path
+                   << "' in ZooKeeper: " << zk->message(code);
+      }
     }
 
     // Now determine who the master is (it may be us).
@@ -431,6 +454,10 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
   string masterSeq;
   long min = LONG_MAX;
   foreach (const string& result, results) {
+    // Skip hostnames
+    if (strings::endsWith(result, "-hostname")) {
+      continue;
+    }
     Try<int> i = numify<int>(result);
     if (i.isError()) {
       LOG(WARNING) << "Unexpected znode at '" << url.path
@@ -489,6 +516,19 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
 
         NewMasterDetectedMessage message;
         message.set_pid(currentMasterPID);
+
+        // Check if we have a hostname set.
+        code = zk->get(
+            url.path + "/" + masterSeq + "-hostname", false, &result, NULL);
+        if (code == ZOK) {
+          LOG(INFO) << "Master detector (" << pid << ")  master hostname: "
+                    << result;
+          currentMasterHostname = result;
+          message.set_hostname(currentMasterHostname);
+        } else {
+          LOG(ERROR) << "Master detector failed to fetch new master hostname: "
+                     << zk->message(code);
+        }
         process::post(pid, message);
       }
     }
@@ -499,10 +539,11 @@ void ZooKeeperMasterDetectorProcess::detectMaster()
 ZooKeeperMasterDetector::ZooKeeperMasterDetector(
     const zookeeper::URL& url,
     const UPID& pid,
+    const std::string& hostname,
     bool contend,
     bool quiet)
 {
-  process = new ZooKeeperMasterDetectorProcess(url, pid, contend, quiet);
+  process = new ZooKeeperMasterDetectorProcess(url, pid, hostname, contend, quiet);
   spawn(process);
 }
 
@@ -564,7 +605,7 @@ Future<UPID> detect(const string& master, bool quiet)
   process::spawn(listener, true); // Let the GC clean up the Listener.
 
   Try<MasterDetector*> detector =
-    MasterDetector::create(master, listener->self(), false, quiet);
+    MasterDetector::create(master, listener->self(), "", false, quiet);
 
   if (detector.isError()) {
     process::terminate(listener);

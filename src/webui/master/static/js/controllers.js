@@ -121,6 +121,16 @@
       // Redirect if we aren't the leader.
       if ($scope.state.leader != $scope.state.pid) {
         $scope.redirect = 6000;
+        var hostname = "";
+        if ($scope.state.leader_hostname) {
+          hostname = $scope.state.leader_hostname;
+        } else {
+          hostname = $scope.state.leader.split("@")[1];
+          hostname = hostname.substring(0, hostname.indexOf(':'));
+        }
+        $scope.leader = hostname + ":" +
+          $scope.state.leader.substring($scope.state.leader.lastIndexOf(':') + 1);
+
         $("#not-leader-alert").show();
 
         var countdown = function() {

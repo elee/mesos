@@ -449,7 +449,8 @@ void Master::initialize()
 
   install<NewMasterDetectedMessage>(
       &Master::newMasterDetected,
-      &NewMasterDetectedMessage::pid);
+      &NewMasterDetectedMessage::pid,
+      &NewMasterDetectedMessage::hostname);
 
   install<NoMasterDetectedMessage>(
       &Master::noMasterDetected);
@@ -703,13 +704,14 @@ void Master::submitScheduler(const string& name)
 }
 
 
-void Master::newMasterDetected(const UPID& pid)
+void Master::newMasterDetected(const UPID& pid, const std::string& hostname)
 {
   // Check and see if we are (1) still waiting to be the elected
   // master, (2) newly elected master, (3) no longer elected master,
   // or (4) still elected master.
 
   leader = pid;
+  leaderHostname = hostname;
 
   if (leader != self() && !elected) {
     LOG(INFO) << "Waiting to be master!";

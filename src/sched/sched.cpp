@@ -126,8 +126,9 @@ protected:
     // The master detector needs to be created after this process is
     // running so that the "master detected" message is not dropped.
     // TODO(benh): Get access to flags so that we can decide whether
-    // or not to make ZooKeeper verbose.
-    detector = MasterDetector::create(url, self(), false);
+    // or not to make ZooKeeper verbose. The hostname param can be
+    // empty since we're not contending.
+    detector = MasterDetector::create(url, self(), "", false);
     if (detector.isError()) {
       driver->abort();
       scheduler->error(driver, detector.error());
@@ -136,7 +137,8 @@ protected:
 
     install<NewMasterDetectedMessage>(
         &SchedulerProcess::newMasterDetected,
-        &NewMasterDetectedMessage::pid);
+        &NewMasterDetectedMessage::pid,
+        &NewMasterDetectedMessage::hostname);
 
     install<NoMasterDetectedMessage>(
         &SchedulerProcess::noMasterDetected);
@@ -188,7 +190,7 @@ protected:
     }
   }
 
-  void newMasterDetected(const UPID& pid)
+  void newMasterDetected(const UPID& pid, const std::string& hostname)
   {
     if (aborted) {
       VLOG(1) << "Ignoring new master detected message because "
@@ -196,7 +198,7 @@ protected:
       return;
     }
 
-    VLOG(1) << "New master at " << pid;
+    VLOG(1) << "New master at " << pid << " on " << hostname;
 
     master = pid;
     link(master);

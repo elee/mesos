@@ -132,7 +132,7 @@ int main(int argc, char** argv)
   process::spawn(slave);
 
   Try<MasterDetector*> detector =
-    MasterDetector::create(master.get(), slave->self(), false, flags.quiet);
+    MasterDetector::create(master.get(), slave->self(), "", false, flags.quiet);
 
   CHECK_SOME(detector) << "Failed to create a master detector";
 

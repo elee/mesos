@@ -152,7 +152,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     pids.push_back(process::spawn(slave));
   }
 
-  detector = new BasicMasterDetector(pid, pids, true);
+  detector = new BasicMasterDetector(pid, "localhost", pids, true);
 
   return pid;
 }
