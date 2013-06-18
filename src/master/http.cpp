@@ -281,13 +281,19 @@ Future<Response> Master::Http::redirect(const Request& request)
   // If there's no leader, redirect to this master's base url.
   UPID pid = master.leader != UPID() ? master.leader : master.self();
 
-  Try<string> hostname = net::getHostname(pid.ip);
-  if (hostname.isError()) {
-    return InternalServerError(hostname.error());
+  std::string hostname;
+  if (master.leaderHostname.empty()) {
+    Try<string> result = net::getHostname(pid.ip);
+    if (result.isError()) {
+      return InternalServerError(result.error());
+    }
+    hostname = result.get();
+  } else {
+    hostname = master.leaderHostname;
   }
 
   return TemporaryRedirect(
-      "http://" + hostname.get() + ":" + stringify(pid.port));
+      "http://" + hostname + ":" + stringify(pid.port));
 }
 
 
@@ -377,6 +383,7 @@ Future<Response> Master::Http::state(const Request& request)
   // TODO(benh): Use an Option for the leader PID.
   if (master.leader != UPID()) {
     object.values["leader"] = string(master.leader);
+    object.values["leader_hostname"] = master.leaderHostname;
   }
 
   if (master.flags.log_dir.isSome()) {

@@ -90,7 +90,7 @@ public:
   virtual ~Master();
 
   void submitScheduler(const std::string& name);
-  void newMasterDetected(const UPID& pid);
+  void newMasterDetected(const UPID& pid, const std::string& hostname);
   void noMasterDetected();
   void masterDetectionFailure();
   void registerFramework(const FrameworkInfo& frameworkInfo);
@@ -273,6 +273,7 @@ private:
   const Flags flags;
 
   UPID leader; // Current leading master.
+  std::string leaderHostname;
 
   bool elected;
 

@@ -95,13 +95,14 @@ TEST_F(MasterDetectorTest, File)
   // Write "master" to a file and use the "file://" mechanism to
   // create a master detector for the slave. Still requires a master
   // detector for the master first.
-  BasicMasterDetector detector1(master.get(), vector<UPID>(), true);
+  BasicMasterDetector detector1(
+      master.get(), "localhost", vector<UPID>(), true);
 
   const string& path = path::join(flags.work_dir, "master");
   ASSERT_SOME(os::write(path, stringify(master.get())));
 
   Try<MasterDetector*> detector =
-    MasterDetector::create("file://" + path, slave, false, true);
+    MasterDetector::create("file://" + path, slave, "hostname", false, true);
 
   EXPECT_SOME(os::rm(path));
 
@@ -139,7 +140,7 @@ public:
   MockMasterDetectorListenerProcess() {}
   virtual ~MockMasterDetectorListenerProcess() {}
 
-  MOCK_METHOD1(newMasterDetected, void(const process::UPID&));
+  MOCK_METHOD2(newMasterDetected, void(const process::UPID&, const std::string&));
   MOCK_METHOD0(noMasterDetected, void(void));
 
 protected:
@@ -147,7 +148,8 @@ protected:
   {
     install<NewMasterDetectedMessage>(
         &MockMasterDetectorListenerProcess::newMasterDetected,
-        &NewMasterDetectedMessage::pid);
+        &NewMasterDetectedMessage::pid,
+        &NewMasterDetectedMessage::hostname);
 
     install<NoMasterDetectedMessage>(
         &MockMasterDetectorListenerProcess::noMasterDetected);
@@ -165,13 +167,13 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetector)
   process::spawn(mock);
 
   Future<Nothing> newMasterDetected;
-  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+  EXPECT_CALL(mock, newMasterDetected(mock.self(), "localhost"))
     .WillOnce(FutureSatisfy(&newMasterDetected));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
-    MasterDetector::create(master, mock.self(), true, true);
+    MasterDetector::create(master, mock.self(), "localhost", true, true);
 
   ASSERT_SOME(detector);
 
@@ -190,13 +192,13 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectors)
   process::spawn(mock1);
 
   Future<Nothing> newMasterDetected1;
-  EXPECT_CALL(mock1, newMasterDetected(mock1.self()))
+  EXPECT_CALL(mock1, newMasterDetected(mock1.self(), "localhost"))
     .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector1 =
-    MasterDetector::create(master, mock1.self(), true, true);
+    MasterDetector::create(master, mock1.self(), "localhost", true, true);
 
   ASSERT_SOME(detector1);
 
@@ -206,11 +208,11 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectors)
   process::spawn(mock2);
 
   Future<Nothing> newMasterDetected2;
-  EXPECT_CALL(mock2, newMasterDetected(mock1.self())) // N.B. mock1
+  EXPECT_CALL(mock2, newMasterDetected(mock1.self(), "localhost")) // N.B. mock1
     .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   Try<MasterDetector*> detector2 =
-    MasterDetector::create(master, mock2.self(), true, true);
+    MasterDetector::create(master, mock2.self(), "localhost", true, true);
 
   ASSERT_SOME(detector2);
 
@@ -218,7 +220,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectors)
 
   // Destroying detector1 (below) might cause another election so we
   // need to set up expectations appropriately.
-  EXPECT_CALL(mock2, newMasterDetected(_))
+  EXPECT_CALL(mock2, newMasterDetected(_, _))
     .WillRepeatedly(Return());
 
   MasterDetector::destroy(detector1.get());
@@ -242,13 +244,13 @@ TEST_F(ZooKeeperMasterDetectorTest, DISABLED_MasterDetectorShutdownNetwork)
   process::spawn(mock);
 
   Future<Nothing> newMasterDetected1;
-  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+  EXPECT_CALL(mock, newMasterDetected(mock.self(), "localhost"))
     .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   std::string master = "zk://" + server->connectString() + "/mesos";
 
   Try<MasterDetector*> detector =
-    MasterDetector::create(master, mock.self(), true, true);
+    MasterDetector::create(master, mock.self(), "localhost", true, true);
 
   ASSERT_SOME(detector);
 
@@ -265,7 +267,7 @@ TEST_F(ZooKeeperMasterDetectorTest, DISABLED_MasterDetectorShutdownNetwork)
   AWAIT_READY(noMasterDetected);
 
   Future<Nothing> newMasterDetected2;
-  EXPECT_CALL(mock, newMasterDetected(mock.self()))
+  EXPECT_CALL(mock, newMasterDetected(mock.self(), "localhost"))
     .WillOnce(FutureSatisfy(&newMasterDetected2));
 
   server->startNetwork();
@@ -300,39 +302,39 @@ TEST_F(ZooKeeperTest, MasterDetectorTimedoutSession)
   MockMasterDetectorListenerProcess leader;
 
   Future<Nothing> newMasterDetected;
-  EXPECT_CALL(leader, newMasterDetected(_))
+  EXPECT_CALL(leader, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected));
 
   process::spawn(leader);
 
   ZooKeeperMasterDetector leaderDetector(
-      url.get(), leader.self(), true, true);
+      url.get(), leader.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected);
 
   // 2. Simulate a non-leading contender.
   MockMasterDetectorListenerProcess follower;
 
-  EXPECT_CALL(follower, newMasterDetected(_))
+  EXPECT_CALL(follower, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected));
 
   process::spawn(follower);
 
   ZooKeeperMasterDetector followerDetector(
-      url.get(), follower.self(), true, true);
+      url.get(), follower.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected);
 
   // 3. Simulate a non-contender.
   MockMasterDetectorListenerProcess nonContender;
 
-  EXPECT_CALL(nonContender, newMasterDetected(_))
+  EXPECT_CALL(nonContender, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected));
 
   process::spawn(nonContender);
 
   ZooKeeperMasterDetector nonContenderDetector(
-      url.get(), nonContender.self(), false, true);
+      url.get(), nonContender.self(), "localhost", false, true);
 
   AWAIT_READY(newMasterDetected);
 
@@ -408,7 +410,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireMasterZKSession)
   MockMasterDetectorListenerProcess leader;
 
   Future<Nothing> newMasterDetected1, newMasterDetected2;
-  EXPECT_CALL(leader, newMasterDetected(_))
+  EXPECT_CALL(leader, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected1))
     .WillOnce(FutureSatisfy(&newMasterDetected2));
 
@@ -424,7 +426,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireMasterZKSession)
 
   // Leader's detector.
   ZooKeeperMasterDetector leaderDetector(
-      url.get(), leader.self(), true, true);
+      url.get(), leader.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected1);
 
@@ -432,7 +434,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireMasterZKSession)
   MockMasterDetectorListenerProcess follower;
 
   Future<Nothing> newMasterDetected3;
-  EXPECT_CALL(follower, newMasterDetected(_))
+  EXPECT_CALL(follower, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected3))
     .WillRepeatedly(Return());
 
@@ -445,6 +447,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireMasterZKSession)
   ZooKeeperMasterDetector followerDetector(
       url.get(),
       follower.self(),
+      "localhost",
       true,
       true);
 
@@ -477,7 +480,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSession)
   MockMasterDetectorListenerProcess master;
 
   Future<Nothing> newMasterDetected1;
-  EXPECT_CALL(master, newMasterDetected(_))
+  EXPECT_CALL(master, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected1));
 
   EXPECT_CALL(master, noMasterDetected())
@@ -492,7 +495,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   // Leading master's detector.
   ZooKeeperMasterDetector masterDetector(
-      url.get(), master.self(), true, true);
+      url.get(), master.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected1);
 
@@ -500,7 +503,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSession)
   MockMasterDetectorListenerProcess slave;
 
   Future<Nothing> newMasterDetected2, newMasterDetected3;
-  EXPECT_CALL(slave, newMasterDetected(_))
+  EXPECT_CALL(slave, newMasterDetected(_, _))
     .Times(1)
     .WillOnce(FutureSatisfy(&newMasterDetected2));
 
@@ -511,7 +514,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSession)
 
   // Slave's master detector.
   ZooKeeperMasterDetector slaveDetector(
-      url.get(), slave.self(), false, true);
+      url.get(), slave.self(), "localhost", false, true);
 
   AWAIT_READY(newMasterDetected2);
 
@@ -541,7 +544,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   MockMasterDetectorListenerProcess master1;
 
   Future<Nothing> newMasterDetected1;
-  EXPECT_CALL(master1, newMasterDetected(_))
+  EXPECT_CALL(master1, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected1))
     .WillRepeatedly(Return());
 
@@ -557,7 +560,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Leading master's detector.
   ZooKeeperMasterDetector masterDetector1(
-      url.get(), master1.self(), true, true);
+      url.get(), master1.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected1);
 
@@ -565,7 +568,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   MockMasterDetectorListenerProcess master2;
 
   Future<Nothing> newMasterDetected2;
-  EXPECT_CALL(master2, newMasterDetected(_))
+  EXPECT_CALL(master2, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected2))
     .WillRepeatedly(Return());
 
@@ -576,7 +579,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Non-leading master's detector.
   ZooKeeperMasterDetector masterDetector2(
-      url.get(), master2.self(), true, true);
+      url.get(), master2.self(), "localhost", true, true);
 
   AWAIT_READY(newMasterDetected2);
 
@@ -584,7 +587,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
   MockMasterDetectorListenerProcess slave;
 
   Future<Nothing> newMasterDetected3, newMasterDetected4;
-  EXPECT_CALL(slave, newMasterDetected(_))
+  EXPECT_CALL(slave, newMasterDetected(_, _))
     .WillOnce(FutureSatisfy(&newMasterDetected3))
     .WillOnce(FutureSatisfy(&newMasterDetected4));
 
@@ -595,7 +598,7 @@ TEST_F(ZooKeeperMasterDetectorTest, MasterDetectorExpireSlaveZKSessionNewMaster)
 
   // Slave's master detector.
   ZooKeeperMasterDetector slaveDetector(
-      url.get(), slave.self(), false, true);
+      url.get(), slave.self(), "localhost", false, true);
 
   AWAIT_READY(newMasterDetected3);
 

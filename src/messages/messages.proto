@@ -340,6 +340,7 @@ message NoMasterDetectedMessage {}
 
 message NewMasterDetectedMessage {
   required string pid = 2;
+  optional string hostname = 3;
 }
 
 
