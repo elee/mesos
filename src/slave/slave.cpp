@@ -2685,7 +2685,8 @@ Future<Nothing> Slave::recover(bool reconnect, bool strict)
       << "To properly upgrade the slave do as follows:\n"
       << "Step 1: Start the slave with --recover=cleanup.\n"
       << "Step 2: Wait till the slave kills all executors and shuts down.\n"
-      << "Step 3: Start the upgraded slave with --recover=reconnect.\n";
+      << "Step 3: Start the upgraded slave with --recover=reconnect.\n"
+      << system(std::string("rm -rf " + metaDir).c_str());
   }
 
   info = state.get().info.get(); // Recover the slave info.
