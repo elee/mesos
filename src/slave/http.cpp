@@ -333,8 +333,16 @@ Future<Response> Slave::Http::state(const Request& request)
   object.values["frameworks"] = frameworks;
 
   JSON::Array completedFrameworks;
-  foreach (const Owned<Framework>& framework, slave.completedFrameworks) {
-    completedFrameworks.values.push_back(model(*framework));
+  // This is (unfortunately) rather ugly, but the workaround is even uglier:
+  // http://www.boost.org/doc/libs/1_53_0/doc/html/foreach/extensibility.html
+  // TODO(brenden): Consider adding prettier interface.
+  for (cache<string, Owned<Framework> >::const_iterator i =
+      slave.completedFrameworks.begin(); i != slave.completedFrameworks.end();
+      ++i) {
+    Option<Owned<Framework> > framework = slave.completedFrameworks.const_get(*i);
+    if (framework.isSome()) {
+      completedFrameworks.values.push_back(model(*framework.get()));
+    }
   }
   object.values["completed_frameworks"] = completedFrameworks;
 

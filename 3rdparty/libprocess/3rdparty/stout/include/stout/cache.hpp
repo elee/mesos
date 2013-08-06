@@ -32,8 +32,10 @@ public:
   typedef std::list<Key> list;
   typedef std::tr1::unordered_map<
     Key, std::pair<Value, typename list::iterator> > map;
+  typedef typename list::iterator iterator;
+  typedef typename list::const_iterator const_iterator;
 
-  explicit cache(int _capacity) : capacity(_capacity) {}
+  explicit cache(size_t _capacity) : capacity(_capacity) {}
 
   void put(const Key& key, const Value& value)
   {
@@ -56,6 +58,53 @@ public:
     }
 
     return None();
+  }
+
+  // Same as above, except it doesn't update the LRU ordering.  Exists to
+  // provide const access to values when needed.
+  Option<Value> const_get(const Key& key) const
+  {
+    typename map::const_iterator i = values.find(key);
+
+    if (i != values.end()) {
+      return (*i).second.first;
+    }
+
+    return None();
+  }
+
+  Option<Value> remove(const Key& key)
+  {
+    typename map::iterator i = values.find(key);
+
+    if (i != values.end()) {
+      Option<Value> ret((*i).second.first);
+      values.erase(i);
+      keys.erase((*i).second.second);
+      return ret;
+    }
+
+    return None();
+  }
+
+  iterator begin()
+  {
+    return keys.begin();
+  }
+
+  iterator end()
+  {
+    return keys.end();
+  }
+
+  const_iterator begin() const
+  {
+    return keys.begin();
+  }
+
+  const_iterator end() const
+  {
+    return keys.end();
   }
 
 private:
@@ -102,7 +151,7 @@ private:
   }
 
   // Size of the cache.
-  int capacity;
+  size_t capacity;
 
   // Cache of values and "pointers" into the least-recently used list.
   map values;
