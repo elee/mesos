@@ -34,6 +34,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/cache.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -315,7 +316,9 @@ private:
 
   hashmap<FrameworkID, Framework*> frameworks;
 
-  boost::circular_buffer<Owned<Framework> > completedFrameworks;
+  // TODO(brenden): Provide std::tr1::hash operator() for FrameworkID rather
+  // than using std::string as our key.
+  cache<std::string, Owned<Framework> > completedFrameworks;
 
   Isolator* isolator;
   Files* files;

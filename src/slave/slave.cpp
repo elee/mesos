@@ -773,17 +773,14 @@ void Slave::runTask(
     framework = new Framework(this, frameworkId, frameworkInfo, pid);
     frameworks[frameworkId] = framework;
 
-    // Is this same framework in completedFrameworks? If so, move the completed
-    // executors to this framework and remove it from that list.
-    // TODO(brenden): Consider using stout/cache.hpp instead of boost
-    // circular_buffer.
-    for (boost::circular_buffer<Owned<Framework> >::iterator i =
-        completedFrameworks.begin(); i != completedFrameworks.end(); ++i) {
-      if ((*i)->id == frameworkId) {
-        framework->completedExecutors = (*i)->completedExecutors;
-        completedFrameworks.erase(i);
-        break;
-      }
+    // Was this same framework recently retired to completedFrameworks? If so,
+    // bring it back from retirement by moving the completed executors and
+    // removing it from that list.
+    Option<Owned<Framework> > retiredFramework =
+      completedFrameworks.remove(frameworkId.value());
+    if (retiredFramework.isSome()) {
+      framework->completedExecutors =
+        retiredFramework.get()->completedExecutors;
     }
   }
 
@@ -2373,7 +2370,7 @@ void Slave::removeFramework(Framework* framework)
   frameworks.erase(framework->id);
 
   // Pass ownership of the framework pointer.
-  completedFrameworks.push_back(Owned<Framework>(framework));
+  completedFrameworks.put(framework->id.value(), Owned<Framework>(framework));
 
   if (frameworks.empty()) {
     // Terminate the slave if
