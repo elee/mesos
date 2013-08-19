@@ -158,6 +158,13 @@ protected:
   {
     timeouts = 0;
     pinged = false;
+
+    if (!body.empty()) {
+      Try<double> load = numify<double>(body);
+      if (load.isSome()) {
+        dispatch(master, &Master::setSlaveLoad, slaveId, load.get());
+      }
+    }
   }
 
   void timeout()
@@ -1532,6 +1539,18 @@ void Master::deactivateSlave(const SlaveID& slaveId)
   removeSlave(slave);
 }
 
+void Master::setSlaveLoad(const SlaveID& slaveId, const double load)
+{
+  if (!slaves.contains(slaveId)) {
+    LOG(WARNING) << "Unable to set load for unknown slave " << slaveId;
+    return;
+  }
+
+  Slave* slave = slaves[slaveId];
+  CHECK_NOTNULL(slave);
+
+  slave->load = load;
+}
 
 void Master::reconcileTasks(
     const UPID& from,
@@ -1652,6 +1671,7 @@ void Master::offer(const FrameworkID& frameworkId,
     offer->set_hostname(slave->info.hostname());
     offer->mutable_resources()->MergeFrom(offered);
     offer->mutable_attributes()->MergeFrom(slave->info.attributes());
+    offer->set_slave_load_hint(slave->load);
 
     // Add all framework's executors running on this slave.
     if (slave->executors.contains(framework->id)) {
