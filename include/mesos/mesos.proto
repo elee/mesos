@@ -342,6 +342,7 @@ message Offer {
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;
+  optional double slave_load_hint = 8 [default = 0];
 }
 
 

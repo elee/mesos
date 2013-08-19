@@ -122,6 +122,7 @@ public:
                       const ExecutorID& executorId,
                       int32_t status);
   void deactivateSlave(const SlaveID& slaveId);
+  void setSlaveLoad(const SlaveID& slaveId, const double load);
 
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the
@@ -340,7 +341,8 @@ struct Slave
       registeredTime(time),
       lastHeartbeat(time),
       disconnected(false),
-      observer(NULL) {}
+      observer(NULL),
+      load(0) {}
 
   ~Slave() {}
 
@@ -470,6 +472,9 @@ struct Slave
   hashset<Offer*> offers;
 
   SlaveObserver* observer;
+
+  // Most recent load averaged received from the slave.
+  double load;
 
 private:
   Slave(const Slave&);              // No copying.

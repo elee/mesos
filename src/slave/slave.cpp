@@ -1981,6 +1981,12 @@ void Slave::executorMessage(
 
 void Slave::ping(const UPID& from, const string& body)
 {
+  double loadavg[2];
+  if (getloadavg(loadavg, 2) == 2) {
+    std::string load(stringify(loadavg[1]));
+    send(from, "PONG", load.c_str(), load.size());
+    return;
+  }
   send(from, "PONG");
 }
 
