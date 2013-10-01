@@ -38,6 +38,7 @@
 #include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/type_utils.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "logging/logging.hpp"
 
@@ -133,6 +134,8 @@ JSON::Object model(const Task& task)
   object.values["slave_id"] = task.slave_id().value();
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
+  object.values["start_time"] = protobuf::getTaskStartTime(task);
+  object.values["finish_time"] = protobuf::getTaskFinishTime(task);
   return object;
 }
 

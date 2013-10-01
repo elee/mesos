@@ -66,6 +66,7 @@ inline StatusUpdate createStatusUpdate(
   status->mutable_slave_id()->MergeFrom(slaveId);
   status->set_state(state);
   status->set_message(message);
+  status->set_timestamp(update.timestamp());
 
   return update;
 }
@@ -90,6 +91,41 @@ inline Task createTask(const TaskInfo& task,
 
   return t;
 }
+
+inline double getTaskStartTime(const Task& task)
+{
+  if (task.transition_size() == 0) {
+    return 0;
+  }
+
+  // Look for first TASK_RUNNING transition, or return the first state
+  // transition.
+  for (int i = 0; i < task.transition_size(); ++i) {
+    const StateTransition &transition = task.transition(i);
+    if (transition.to_state() == TASK_RUNNING) {
+      return transition.timestamp();
+    }
+  }
+  return task.transition(0).timestamp();
+}
+
+inline double getTaskFinishTime(const Task& task)
+{
+  if (task.transition_size() == 0) {
+    return 0;
+  }
+
+  // Look for last terminal task transition, or return the last state
+  // transition.
+  for (int i =  task.transition_size() - 1; i >= 0; --i) {
+    const StateTransition &transition = task.transition(i);
+    if (isTerminalState(transition.to_state())) {
+      return transition.timestamp();
+    }
+  }
+  return task.transition(task.transition_size() - 1).timestamp();
+}
+
 
 } // namespace protobuf
 } // namespace internal {

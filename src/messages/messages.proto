@@ -46,8 +46,14 @@ message Task {
   required SlaveID slave_id = 5;
   required TaskState state = 6;
   repeated Resource resources = 7;
+  repeated StateTransition transition = 8;
 }
 
+message StateTransition {
+  optional TaskState from_state = 1;
+  optional TaskState to_state = 2;
+  optional double timestamp = 3;
+}
 
 // Describes a role, which are used to group frameworks for allocation
 // decisions, depending on the allocation policy being used.

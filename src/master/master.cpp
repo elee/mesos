@@ -1467,7 +1467,13 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   LOG(INFO) << "Status update " << update << " from " << pid;
 
-  task->set_state(status.state());
+  if (task->state() != status.state()) {
+    StateTransition *transition = task->add_transition();
+    transition->set_timestamp(status.timestamp());
+    transition->set_from_state(task->state());
+    task->set_state(status.state());
+    transition->set_to_state(task->state());
+  }
 
   // Handle the task appropriately if it's terminated.
   if (protobuf::isTerminalState(status.state())) {
