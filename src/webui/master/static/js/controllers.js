@@ -89,19 +89,19 @@
     // For the full system state updates, it may make sense to break
     // it up using pagination and/or splitting the endpoint.
     if (num_slaves < 10) {
-      return 3000;
+      return 13000;
     } else if (num_slaves < 50) {
-      return 4000;
+      return 14000;
     } else if (num_slaves < 100) {
-      return 5000;
+      return 15000;
     } else if (num_slaves < 500) {
-      return 10000;
+      return 110000;
     } else if (num_slaves < 1000) {
-      return 20000;
+      return 50000;
     } else if (num_slaves < 5000) {
-      return 30000;
+      return 100000;
     } else {
-      return 60000;
+      return 160000;
     }
   }
 
