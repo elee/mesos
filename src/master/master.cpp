@@ -1567,22 +1567,29 @@ void Master::reconcileTasks(
   LOG(INFO) << "Performing task state reconciliation for framework "
             << frameworkId;
 
+  // Make a copy of this framework's tasks
+  hashmap<TaskID, Task*> tasks = framework->tasks;
+
   // Verify expected task states and send status updates whenever expectations
   // are not met. When:
   //   1) Slave is unknown.*
   //   2) Task is unknown.*
   //   3) Task state has changed.
+  //   4) Task is known to master but not framework
   //
   // *) TODO(nnielsen): Missing slaves and tasks are currently treated silently
   //                    i.e. nothing is sent. To give accurate responses in
   //                    these cases during master fail-over, we need to leverage
   //                    the registrar.
+
   foreach (const TaskStatus& status, statuses) {
     if (!status.has_slave_id()) {
       LOG(WARNING) << "Status from task " << status.task_id()
                    << " does not include slave id";
       continue;
     }
+
+    tasks.erase(status.task_id());
 
     Slave* slave = getSlave(status.slave_id());
     if (slave != NULL) {
@@ -1596,8 +1603,28 @@ void Master::reconcileTasks(
           "Task state changed");
 
         statusUpdate(update, UPID());
+      } else if (task == NULL) {
+        const StatusUpdate& update = protobuf::createStatusUpdate(
+          frameworkId,
+          status.slave_id(),
+          status.task_id(),
+          TASK_LOST,
+          "Task state lost (the task may have terminated)");
+
+        statusUpdate(update, UPID());
       }
     }
+  }
+
+  foreachvalue (Task* task, tasks) {
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+      frameworkId,
+      task->slave_id(),
+      task->task_id(),
+      task->state(),
+      "Task is active");
+
+    statusUpdate(update, UPID());
   }
 }
 
